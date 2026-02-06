@@ -3,6 +3,7 @@ import { Send, Paperclip, Mic, MoreVertical, Bot, User, Loader2, AlertCircle, Se
 import type { Session } from '../../services/sessionService';
 import { sendChatMessage } from '../../services/api';
 import { sessionService } from '../../services/sessionService';
+import { skillService } from '../../services/skillService';
 import { Link, useSearchParams } from 'react-router-dom';
 import './Chat.css';
 
@@ -200,9 +201,14 @@ export default function UserChat() {
         .map(m => ({ role: m.role as 'user' | 'assistant', content: m.content }));
       chatMessages.push({ role: 'user', content: input });
 
+      const enabledSkills = skillService.getEnabledSkills();
+      const skillsDescription = enabledSkills.length > 0
+        ? `\nYou have the following skills enabled: ${enabledSkills.map(s => `[${s.displayName}: ${s.description}]`).join(', ')}.`
+        : '';
+
       const systemMessage = {
         role: 'system' as const,
-        content: 'You are Teleaon Bot, a helpful and intelligent AI assistant. Be concise, friendly, and helpful. Format your responses with markdown when appropriate.',
+        content: `You are Teleaon Bot, a helpful and intelligent AI assistant. Be concise, friendly, and helpful. Format your responses with markdown when appropriate.${skillsDescription}`,
       };
 
       const response = await sendChatMessage({
