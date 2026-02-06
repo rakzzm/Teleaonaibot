@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Sparkles, ExternalLink, Search } from 'lucide-react';
+import { Sparkles, ExternalLink, Search, X, CheckCircle2 } from 'lucide-react';
 import { skillService } from '../../services/skillService';
 import type { Skill } from '../../services/skillService';
 import './Skills.css';
@@ -10,6 +10,7 @@ export default function UserSkills() {
   const [skills, setSkills] = useState<Skill[]>([]);
   const [selectedCategory, setSelectedCategory] = useState('All');
   const [searchQuery, setSearchQuery] = useState('');
+  const [selectedSkill, setSelectedSkill] = useState<Skill | null>(null);
 
   useEffect(() => {
     setSkills(skillService.getSkills());
@@ -90,13 +91,76 @@ export default function UserSkills() {
             <p className="skill-description">{skill.description}</p>
             <div className="skill-footer">
               <span className="badge">{skill.category}</span>
-              <button className="btn-icon btn-ghost btn-sm" title="Learn more">
+              <button 
+                className="btn-icon btn-ghost btn-sm" 
+                title="Learn more"
+                onClick={() => setSelectedSkill(skill)}
+              >
                 <ExternalLink size={14} />
               </button>
             </div>
           </div>
         ))}
       </div>
+
+      {/* Skill Details Modal */}
+      {selectedSkill && (
+        <div className="skill-details-overlay" onClick={() => setSelectedSkill(null)}>
+          <div className="skill-details-modal glass-card glow" onClick={e => e.stopPropagation()}>
+            <div className="modal-header">
+              <div className="modal-title-area">
+                <span className="modal-skill-icon">{selectedSkill.icon}</span>
+                <div>
+                  <h3>{selectedSkill.displayName}</h3>
+                  <span className="badge">{selectedSkill.category}</span>
+                </div>
+              </div>
+              <button className="btn-icon btn-ghost" onClick={() => setSelectedSkill(null)}>
+                <X size={20} />
+              </button>
+            </div>
+            <div className="modal-body">
+              <section className="modal-section">
+                <h4>About this skill</h4>
+                <p>{selectedSkill.longDescription || selectedSkill.description}</p>
+              </section>
+              
+              {selectedSkill.features && selectedSkill.features.length > 0 && (
+                <section className="modal-section">
+                  <h4>Key Features</h4>
+                  <ul className="features-list">
+                    {selectedSkill.features.map(feature => (
+                      <li key={feature}>
+                        <CheckCircle2 size={16} className="feature-icon" />
+                        {feature}
+                      </li>
+                    ))}
+                  </ul>
+                </section>
+              )}
+
+              <div className="modal-status-box">
+                <div className="status-info">
+                  <span className="status-label">Status:</span>
+                  <span className={`status-value ${selectedSkill.enabled ? 'text-success' : 'text-muted'}`}>
+                    {selectedSkill.enabled ? 'Active' : 'Disabled'}
+                  </span>
+                </div>
+                <button 
+                  className={`btn ${selectedSkill.enabled ? 'btn-ghost' : 'btn-primary'}`}
+                  onClick={() => {
+                    toggleSkill(selectedSkill.id);
+                    // Close modal or update local state for immediate feedback
+                    setSelectedSkill(prev => prev ? { ...prev, enabled: !prev.enabled } : null);
+                  }}
+                >
+                  {selectedSkill.enabled ? 'Disable Skill' : 'Enable Skill'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
       {filteredSkills.length === 0 && (
         <div className="empty-state glass-card">
