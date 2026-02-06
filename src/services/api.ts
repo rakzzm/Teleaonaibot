@@ -68,6 +68,8 @@ async function callGeminiDirectly(request: ChatCompletionRequest): Promise<ChatC
     const baseUrl = `https://generativelanguage.googleapis.com/${version}/models`;
     const url = `${baseUrl}/${modelId}:generateContent?key=${request.apiKey}`;
     
+    console.log(`[Gemini] Attempting model "${modelId}" on version "${version}"...`);
+    
     const systemMessage = request.messages.find(m => m.role === 'system');
     const otherMessages = request.messages.filter(m => m.role !== 'system');
 
@@ -116,7 +118,7 @@ async function callGeminiDirectly(request: ChatCompletionRequest): Promise<ChatC
     if (!response.ok && useFormalSystemMsg) {
       const errorText = await response.clone().text();
       if (errorText.includes('system_instruction')) {
-        console.warn(`[Gemini] system_instruction not supported by ${modelId} on ${version}. Retrying with prepended prompt...`);
+        console.warn(`[Gemini] Model ${modelId} does not support system_instruction. Retrying with prepended prompt...`);
         body = buildBody(false);
         response = await fetch(url, {
           method: 'POST',
@@ -139,6 +141,7 @@ async function callGeminiDirectly(request: ChatCompletionRequest): Promise<ChatC
     }
 
     const data = await response.json();
+    console.log(`[Gemini] Success! Model: ${modelId}`);
     return {
       content: data.candidates?.[0]?.content?.parts?.[0]?.text || '',
       model: modelId,
@@ -149,28 +152,37 @@ async function callGeminiDirectly(request: ChatCompletionRequest): Promise<ChatC
   if (requestedModel.includes('gemini-2.0-flash')) requestedModel = 'gemini-2.0-flash-exp';
 
   try {
+    // Attempt 1: Requested model on v1beta
     return await tryModel(requestedModel, 'v1beta');
   } catch (err: unknown) {
     const errorMsg = err instanceof Error ? err.message : String(err);
-    console.warn(`[Gemini] First attempt failed: ${errorMsg}. Trying fallback...`);
+    console.warn(`[Gemini] First attempt (${requestedModel}/v1beta) failed: ${errorMsg}`);
+    
     try {
-      // Fallback 1: gemini-1.5-flash-latest on v1beta
-      return await tryModel('gemini-1.5-flash-latest', 'v1beta');
+      // Fallback 1: gemini-1.5-flash on v1beta (v1beta often has better alias/feature support)
+      return await tryModel('gemini-1.5-flash', 'v1beta');
     } catch {
       try {
-        // Fallback 2: gemini-1.5-flash on v1
-        return await tryModel('gemini-1.5-flash', 'v1');
-      } catch (err3: unknown) {
-        const finalErrorMsg = err3 instanceof Error ? err3.message : String(err3);
-        return {
-          content: '',
-          model: requestedModel,
-          error: `Gemini Direct Call Failed: ${finalErrorMsg}`,
-        };
+        // Fallback 2: gemini-1.5-flash-latest on v1beta
+        return await tryModel('gemini-1.5-flash-latest', 'v1beta');
+      } catch {
+        try {
+          // Fallback 3: gemini-1.5-flash on v1 (Stable endpoint)
+          return await tryModel('gemini-1.5-flash', 'v1');
+        } catch (finalErr: unknown) {
+          const finalMsg = finalErr instanceof Error ? finalErr.message : String(finalErr);
+          console.error(`[Gemini] All attempts failed. Final error: ${finalMsg}`);
+          return {
+            content: '',
+            model: requestedModel,
+            error: `Gemini Direct Call Failed: ${finalMsg}`,
+          };
+        }
       }
     }
   }
 }
+
 
 // Test provider connection
 export async function testProviderConnection(
