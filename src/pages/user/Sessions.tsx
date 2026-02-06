@@ -1,63 +1,25 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { MessageSquare, Calendar, Trash2, MoreVertical, Search } from 'lucide-react';
+import { sessionService } from '../../services/sessionService';
+import type { Session } from '../../services/sessionService';
 import './Sessions.css';
 
-interface Session {
-  id: string;
-  title: string;
-  preview: string;
-  messageCount: number;
-  createdAt: string;
-  updatedAt: string;
-}
-
-const mockSessions: Session[] = [
-  {
-    id: '1',
-    title: 'Market Analysis Report',
-    preview: 'Here is the latest market analysis for today...',
-    messageCount: 24,
-    createdAt: '2024-02-05',
-    updatedAt: '2 minutes ago',
-  },
-  {
-    id: '2',
-    title: 'Code Review - Authentication Module',
-    preview: 'I have reviewed your pull request and found...',
-    messageCount: 18,
-    createdAt: '2024-02-05',
-    updatedAt: '1 hour ago',
-  },
-  {
-    id: '3',
-    title: 'Daily Schedule Planning',
-    preview: 'Your schedule for today includes several meetings...',
-    messageCount: 12,
-    createdAt: '2024-02-04',
-    updatedAt: '3 hours ago',
-  },
-  {
-    id: '4',
-    title: 'Research: AI Trends 2024',
-    preview: 'Based on my research, the top AI trends for 2024...',
-    messageCount: 45,
-    createdAt: '2024-02-03',
-    updatedAt: 'Yesterday',
-  },
-  {
-    id: '5',
-    title: 'Project Planning Meeting Notes',
-    preview: 'Key takeaways from the project planning session...',
-    messageCount: 32,
-    createdAt: '2024-02-02',
-    updatedAt: '2 days ago',
-  },
-];
-
 export default function UserSessions() {
-  const [sessions, setSessions] = useState(mockSessions);
+  const [sessions, setSessions] = useState<Session[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
+
+  const loadSessions = () => {
+    setSessions(sessionService.getSessions());
+  };
+
+  useEffect(() => {
+    loadSessions();
+
+    // Listen for real-time updates from Chat.tsx or other sessions
+    window.addEventListener('teleaon_sessions_updated', loadSessions);
+    return () => window.removeEventListener('teleaon_sessions_updated', loadSessions);
+  }, []);
 
   const filteredSessions = sessions.filter(
     (session) =>
@@ -66,7 +28,8 @@ export default function UserSessions() {
   );
 
   const handleDelete = (id: string) => {
-    setSessions((prev) => prev.filter((s) => s.id !== id));
+    sessionService.deleteSession(id);
+    loadSessions();
   };
 
   return (
@@ -106,7 +69,9 @@ export default function UserSessions() {
                   </span>
                   <span className="meta-item">
                     <Calendar size={12} />
-                    {session.updatedAt}
+                    {new Date(session.updatedAt).toLocaleDateString() === new Date().toLocaleDateString()
+                      ? new Date(session.updatedAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+                      : new Date(session.updatedAt).toLocaleDateString()}
                   </span>
                 </div>
               </div>

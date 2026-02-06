@@ -1,7 +1,9 @@
 import React, { useState, useRef, useEffect } from 'react';
 import { Send, Paperclip, Mic, MoreVertical, Bot, User, Loader2, AlertCircle, Settings } from 'lucide-react';
+import type { Session } from '../../services/sessionService';
 import { sendChatMessage } from '../../services/api';
-import { Link } from 'react-router-dom';
+import { sessionService } from '../../services/sessionService';
+import { Link, useSearchParams } from 'react-router-dom';
 import './Chat.css';
 
 interface Message {
@@ -65,21 +67,49 @@ function getConfiguredProvider(): { apiKey: string; provider: string; model: str
   }
 }
 
-const initialMessages: Message[] = [
-  {
-    id: '1',
-    role: 'assistant',
-    content: "Hello! 👋 I'm Teleaon Bot, your intelligent AI assistant. How can I help you today?",
-    timestamp: new Date(Date.now() - 60000),
-  },
-];
-
 export default function UserChat() {
-  const [messages, setMessages] = useState<Message[]>(initialMessages);
+  const [searchParams, setSearchParams] = useSearchParams();
+  const sessionId = searchParams.get('session');
+  
+  const [messages, setMessages] = useState<Message[]>([]);
+  const [currentSessionId, setCurrentSessionId] = useState<string | null>(sessionId);
   const [input, setInput] = useState('');
   const [isTyping, setIsTyping] = useState(false);
   const [noProvider, setNoProvider] = useState(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  // Load session or initial message
+  useEffect(() => {
+    if (sessionId) {
+      const session = sessionService.getSession(sessionId);
+      if (session) {
+        const mappedMessages = session.messages
+          .filter(m => m.role !== 'system')
+          .map(m => ({
+            id: m.id,
+            role: m.role as 'user' | 'assistant',
+            content: m.content,
+            timestamp: new Date(m.timestamp)
+          }));
+        
+        // Use functional update to avoid unnecessary re-renders if the content is the same
+        setMessages(mappedMessages);
+        setCurrentSessionId(sessionId);
+        return;
+      }
+    }
+    
+    // Default initial message if no session loaded
+    setMessages([
+      {
+        id: '1',
+        role: 'assistant',
+        content: "Hello! 👋 I'm Teleaon Bot, your intelligent AI assistant. How can I help you today?",
+        timestamp: new Date(),
+      },
+    ]);
+    setCurrentSessionId(null);
+  }, [sessionId]);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -92,7 +122,6 @@ export default function UserChat() {
   // Check if provider is configured
   useEffect(() => {
     const config = getConfiguredProvider();
-    // Use timeout to avoid calling setState during effect top-level (cascading render)
     const timer = setTimeout(() => {
       setNoProvider(!config);
     }, 0);
@@ -102,11 +131,12 @@ export default function UserChat() {
   const handleSend = async () => {
     if (!input.trim()) return;
 
+    const timestamp = new Date();
     const userMessage: Message = {
       id: Date.now().toString(),
       role: 'user',
       content: input,
-      timestamp: new Date(),
+      timestamp,
     };
 
     setMessages((prev) => [...prev, userMessage]);
@@ -115,7 +145,6 @@ export default function UserChat() {
 
     // Get provider configuration
     const config = getConfiguredProvider();
-    console.log('[Chat] Configured Provider:', config);
     
     if (!config) {
       setNoProvider(true);
@@ -131,14 +160,46 @@ export default function UserChat() {
       return;
     }
 
+    // Ensure we have a session
+    let activeSessionId = currentSessionId;
+    if (!activeSessionId) {
+      activeSessionId = Date.now().toString();
+      const newSession: Session = {
+        id: activeSessionId,
+        title: input.slice(0, 30) + (input.length > 30 ? '...' : ''),
+        preview: input,
+        messageCount: 1,
+        messages: [
+          {
+            id: 'system-1',
+            role: 'system',
+            content: 'You are Teleaon Bot, a helpful and intelligent AI assistant.',
+            timestamp: new Date().toISOString()
+          },
+          {
+            ...userMessage,
+            timestamp: timestamp.toISOString()
+          }
+        ],
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+      };
+      sessionService.saveSession(newSession);
+      setCurrentSessionId(activeSessionId);
+      setSearchParams({ session: activeSessionId });
+    } else {
+      sessionService.addMessageToSession(activeSessionId, {
+        ...userMessage,
+        timestamp: timestamp.toISOString()
+      });
+    }
+
     try {
-      // Build messages array for API
       const chatMessages = messages
         .filter(m => !m.error)
         .map(m => ({ role: m.role as 'user' | 'assistant', content: m.content }));
       chatMessages.push({ role: 'user', content: input });
 
-      // Add system message
       const systemMessage = {
         role: 'system' as const,
         content: 'You are Teleaon Bot, a helpful and intelligent AI assistant. Be concise, friendly, and helpful. Format your responses with markdown when appropriate.',
@@ -151,17 +212,28 @@ export default function UserChat() {
         provider: config.provider,
       });
 
+      const assistantTimestamp = new Date();
       const assistantMessage: Message = {
         id: (Date.now() + 1).toString(),
         role: 'assistant',
         content: response.error 
           ? `❌ Error: ${response.error}` 
           : response.content || "I received your message but couldn't generate a response.",
-        timestamp: new Date(),
+        timestamp: assistantTimestamp,
         error: !!response.error,
       };
       
       setMessages((prev) => [...prev, assistantMessage]);
+
+      // Save assistant message to session
+      if (activeSessionId && !response.error) {
+        sessionService.addMessageToSession(activeSessionId, {
+          id: assistantMessage.id,
+          role: 'assistant',
+          content: assistantMessage.content,
+          timestamp: assistantTimestamp.toISOString()
+        });
+      }
     } catch (error) {
       const errorMsg = error instanceof Error ? error.message : 'Unknown error';
       const errorMessage: Message = {
