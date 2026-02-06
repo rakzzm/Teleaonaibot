@@ -167,7 +167,7 @@ export default function UserChat() {
       const errorMessage: Message = {
         id: (Date.now() + 1).toString(),
         role: 'assistant',
-        content: `❌ Failed to get response: ${errorMsg}\n\nMake sure the backend server is running (\`npm run server\`).`,
+        content: `❌ Failed to get response: ${errorMsg}`,
         timestamp: new Date(),
         error: true,
       };
