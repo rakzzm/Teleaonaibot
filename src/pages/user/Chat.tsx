@@ -4,6 +4,7 @@ import type { Session } from '../../services/sessionService';
 import { sendChatMessage } from '../../services/api';
 import { sessionService } from '../../services/sessionService';
 import { skillService } from '../../services/skillService';
+import { memoryService } from '../../services/memoryService';
 import { Link, useSearchParams } from 'react-router-dom';
 import './Chat.css';
 
@@ -203,12 +204,17 @@ export default function UserChat() {
 
       const enabledSkills = skillService.getEnabledSkills();
       const skillsDescription = enabledSkills.length > 0
-        ? `\nYou have the following skills enabled: ${enabledSkills.map(s => `[${s.displayName}: ${s.description}]`).join(', ')}.`
+        ? `\nYou have the following skills enabled: ${enabledSkills.map((s: any) => `[${s.displayName}: ${s.description}]`).join(', ')}.`
+        : '';
+
+      const userMemories = memoryService.getMemories();
+      const memoriesDescription = userMemories.length > 0
+        ? `\nYou remember the following about the user: ${userMemories.map(m => `[${m.category}: ${m.content}]`).join(', ')}.`
         : '';
 
       const systemMessage = {
         role: 'system' as const,
-        content: `You are Teleaon Bot, a helpful and intelligent AI assistant. Be concise, friendly, and helpful. Format your responses with markdown when appropriate.${skillsDescription}`,
+        content: `You are Teleaon Bot, a helpful and intelligent AI assistant. Be concise, friendly, and helpful. Format your responses with markdown when appropriate.${skillsDescription}${memoriesDescription}`,
       };
 
       const response = await sendChatMessage({
