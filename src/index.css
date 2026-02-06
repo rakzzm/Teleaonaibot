@@ -68,8 +68,17 @@ button:focus-visible {
 }
 
 /* Global Icon Gradient Styling */
-.lucide {
+svg.lucide, 
+svg.lucide *,
+.nav-icon svg,
+.nav-icon svg * {
   stroke: url(#teleaon-icon-gradient) !important;
+}
+
+/* Ensure filled icons also use the gradient if they have a fill attribute */
+svg.lucide[fill]:not([fill="none"]),
+svg.lucide[fill]:not([fill="none"]) * {
+  fill: url(#teleaon-icon-gradient) !important;
 }
 
 /* Ensure filled icons also use the gradient if applicable */

@@ -118,32 +118,40 @@ export default function UserMemory() {
       </div>
 
       <div className="memory-header-actions">
-        <div className="search-bar glass-card">
-          <Search size={18} />
+        <div className="search-bar glass-card glow-on-focus">
+          <Search size={18} className="search-icon" />
           <input 
             type="text" 
             placeholder="Search memories or tags..." 
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
           />
+          {searchQuery && (
+            <button className="btn-icon btn-sm btn-ghost" onClick={() => setSearchQuery('')}>
+              <X size={14} />
+            </button>
+          )}
         </div>
         {!isAdding && (
-          <button className="btn btn-primary" onClick={() => setIsAdding(true)}>
+          <button className="btn btn-primary btn-glow" onClick={() => setIsAdding(true)}>
             <Plus size={18} /> Add Memory
           </button>
         )}
       </div>
 
-      <div className="category-tabs">
-        {categories.map((cat) => (
-          <button
-            key={cat}
-            className={`tab-btn ${selectedCategory === cat ? 'active' : ''}`}
-            onClick={() => setSelectedCategory(cat)}
-          >
-            {cat}
-          </button>
-        ))}
+      <div className="category-scroll-container">
+        <div className="category-tabs">
+          {categories.map((cat) => (
+            <button
+              key={cat}
+              className={`tab-btn ${selectedCategory === cat ? 'active' : ''}`}
+              onClick={() => setSelectedCategory(cat)}
+            >
+              <Tag size={14} />
+              {cat}
+            </button>
+          ))}
+        </div>
       </div>
 
       {isAdding && (

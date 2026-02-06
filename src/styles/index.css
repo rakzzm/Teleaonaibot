@@ -694,3 +694,8 @@ textarea.input {
 .animate-slide-in-left {
   animation: slideInLeft var(--transition-slow) ease-out;
 }
+
+/* Make sidebar icons bolder/darker mode style */
+.sidebar .nav-icon svg {
+  stroke-width: 2.5px;
+}

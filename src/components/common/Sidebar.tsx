@@ -35,24 +35,24 @@ interface NavItem {
 }
 
 const userNavItems: NavItem[] = [
-  { id: 'dashboard', label: 'Dashboard', icon: <LayoutDashboard size={20} />, path: '/user' },
-  { id: 'chat', label: 'Chat', icon: <MessageSquare size={20} />, path: '/user/chat' },
-  { id: 'sessions', label: 'Sessions', icon: <History size={20} />, path: '/user/sessions' },
-  { id: 'memory', label: 'Memory', icon: <Brain size={20} />, path: '/user/memory' },
-  { id: 'skills', label: 'Skills', icon: <Sparkles size={20} />, path: '/user/skills' },
-  { id: 'settings', label: 'Settings', icon: <Settings size={20} />, path: '/user/settings' },
+  { id: 'dashboard', label: 'Dashboard', icon: <LayoutDashboard size={20} stroke="url(#teleaon-icon-gradient)" />, path: '/user' },
+  { id: 'chat', label: 'Chat', icon: <MessageSquare size={20} stroke="url(#teleaon-icon-gradient)" />, path: '/user/chat' },
+  { id: 'sessions', label: 'Sessions', icon: <History size={20} stroke="url(#teleaon-icon-gradient)" />, path: '/user/sessions' },
+  { id: 'memory', label: 'Memory', icon: <Brain size={20} stroke="url(#teleaon-icon-gradient)" />, path: '/user/memory' },
+  { id: 'skills', label: 'Skills', icon: <Sparkles size={20} stroke="url(#teleaon-icon-gradient)" />, path: '/user/skills' },
+  { id: 'settings', label: 'Settings', icon: <Settings size={20} stroke="url(#teleaon-icon-gradient)" />, path: '/user/settings' },
 ];
 
 const adminNavItems: NavItem[] = [
-  { id: 'dashboard', label: 'Dashboard', icon: <LayoutDashboard size={20} />, path: '/admin' },
-  { id: 'users', label: 'Users', icon: <Users size={20} />, path: '/admin/users' },
-  { id: 'providers', label: 'Providers', icon: <Server size={20} />, path: '/admin/providers' },
-  { id: 'channels', label: 'Channels', icon: <Radio size={20} />, path: '/admin/channels' },
-  { id: 'cron', label: 'Cron Jobs', icon: <Clock size={20} />, path: '/admin/cron' },
-  { id: 'skills', label: 'Skills', icon: <Wrench size={20} />, path: '/admin/skills' },
-  { id: 'config', label: 'Configuration', icon: <FileJson size={20} />, path: '/admin/config' },
-  { id: 'logs', label: 'Logs', icon: <FileText size={20} />, path: '/admin/logs' },
-  { id: 'status', label: 'Status', icon: <Activity size={20} />, path: '/admin/status' },
+  { id: 'dashboard', label: 'Dashboard', icon: <LayoutDashboard size={20} stroke="url(#teleaon-icon-gradient)" />, path: '/admin' },
+  { id: 'users', label: 'Users', icon: <Users size={20} stroke="url(#teleaon-icon-gradient)" />, path: '/admin/users' },
+  { id: 'providers', label: 'Providers', icon: <Server size={20} stroke="url(#teleaon-icon-gradient)" />, path: '/admin/providers' },
+  { id: 'channels', label: 'Channels', icon: <Radio size={20} stroke="url(#teleaon-icon-gradient)" />, path: '/admin/channels' },
+  { id: 'cron', label: 'Cron Jobs', icon: <Clock size={20} stroke="url(#teleaon-icon-gradient)" />, path: '/admin/cron' },
+  { id: 'skills', label: 'Skills', icon: <Wrench size={20} stroke="url(#teleaon-icon-gradient)" />, path: '/admin/skills' },
+  { id: 'config', label: 'Configuration', icon: <FileJson size={20} stroke="url(#teleaon-icon-gradient)" />, path: '/admin/config' },
+  { id: 'logs', label: 'Logs', icon: <FileText size={20} stroke="url(#teleaon-icon-gradient)" />, path: '/admin/logs' },
+  { id: 'status', label: 'Status', icon: <Activity size={20} stroke="url(#teleaon-icon-gradient)" />, path: '/admin/status' },
 ];
 
 export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
@@ -102,7 +102,7 @@ export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
             className="portal-switch-btn"
           >
             <span className="nav-icon">
-              {isAdminRoute ? <MessageSquare size={20} /> : <Settings size={20} />}
+              {isAdminRoute ? <MessageSquare size={20} stroke="url(#teleaon-icon-gradient)" /> : <Settings size={20} stroke="url(#teleaon-icon-gradient)" />}
             </span>
             {!collapsed && (
               <span className="nav-label">
@@ -126,7 +126,7 @@ export default function Sidebar({ collapsed, onToggle }: SidebarProps) {
           )}
         </div>
         <button className="btn-icon btn-ghost logout-btn" onClick={logout} title="Logout">
-          <LogOut size={18} />
+          <LogOut size={18} stroke="url(#teleaon-icon-gradient)" />
         </button>
       </div>
     </aside>

@@ -32,6 +32,16 @@ export default function MainLayout() {
 
   return (
     <div className={`main-layout ${sidebarCollapsed ? 'sidebar-collapsed' : ''}`}>
+      {/* Global SVG Gradient for Icons - Defined at the top level for reliability */}
+      <svg width="0" height="0" style={{ position: 'absolute', visibility: 'hidden' }} aria-hidden="true">
+        <defs>
+          <linearGradient id="teleaon-icon-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stopColor="#3b82f6" /> {/* Deep Blue */}
+            <stop offset="100%" stopColor="#d946ef" /> {/* Deep Magenta */}
+          </linearGradient>
+        </defs>
+      </svg>
+
       <Sidebar 
         collapsed={sidebarCollapsed} 
         onToggle={() => setSidebarCollapsed(!sidebarCollapsed)} 
@@ -42,16 +52,6 @@ export default function MainLayout() {
           <Outlet />
         </main>
       </div>
-
-      {/* Global SVG Gradient for Icons */}
-      <svg width="0" height="0" style={{ position: 'absolute' }}>
-        <defs>
-          <linearGradient id="teleaon-icon-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
-            <stop offset="0%" stopColor="#0ea5e9" /> {/* Sky Blue */}
-            <stop offset="100%" stopColor="#ec4899" /> {/* Pink */}
-          </linearGradient>
-        </defs>
-      </svg>
     </div>
   );
 }

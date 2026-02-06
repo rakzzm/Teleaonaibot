@@ -10,6 +10,7 @@ export interface ChatCompletionRequest {
   model?: string;
   apiKey: string;
   provider?: string;
+  useGrounding?: boolean;
 }
 
 export interface ChatCompletionResponse {
@@ -99,6 +100,15 @@ async function callGeminiDirectly(request: ChatCompletionRequest): Promise<ChatC
         body.system_instruction = {
           parts: [{ text: systemMessage.content }]
         };
+      }
+
+      // Add Google Search grounding if requested
+      if (request.useGrounding) {
+        body.tools = [
+          {
+            google_search: {}
+          }
+        ];
       }
 
       return body;

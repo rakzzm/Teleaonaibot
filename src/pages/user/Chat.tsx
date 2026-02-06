@@ -5,6 +5,7 @@ import { sendChatMessage } from '../../services/api';
 import { sessionService } from '../../services/sessionService';
 import { skillService } from '../../services/skillService';
 import { memoryService } from '../../services/memoryService';
+import { toolExecutor } from '../../services/toolExecutor';
 import { Link, useSearchParams } from 'react-router-dom';
 import './Chat.css';
 
@@ -68,6 +69,87 @@ function getConfiguredProvider(): { apiKey: string; provider: string; model: str
     return null;
   }
 }
+// Helper to parse and render message content with markdown and tool support
+const MessageContent = ({ content }: { content: string }) => {
+  // Split by tool_code blocks
+  const parts = content.split(/(```tool_code[\s\S]*?```)/g);
+
+  return (
+    <>
+      {parts.map((part, index) => {
+        if (part.startsWith('```tool_code')) {
+          // Extract tool call details
+          const toolMatch = part.match(/```tool_code\s+([\s\S]*?)```/);
+          const toolCall = toolMatch ? toolMatch[1].trim() : 'Unknown Action';
+          
+          // Try to make it look nicer (e.g., github.search -> GitHub Search)
+          const skillName = toolCall.split('(')[0].split('.').map(s => s.charAt(0).toUpperCase() + s.slice(1)).join(' ');
+          
+          return (
+            <div key={index} className="skill-call-card glass-card glow">
+              <div className="skill-call-header">
+                <Bot size={14} className="skill-icon" />
+                <span className="skill-label">Skill Action</span>
+              </div>
+              <div className="skill-call-body">
+                <span className="skill-name">{skillName}</span>
+                <code className="skill-code">{toolCall}</code>
+              </div>
+              <div className="skill-call-status">
+                <div className="status-indicator processing"></div>
+                <span>Executing background task...</span>
+              </div>
+            </div>
+          );
+        }
+
+        // Basic Markdown-ish parsing for the rest
+        return (
+          <div key={index} className="text-content">
+            {part.split('\n').map((line, i) => {
+              const parseBold = (text: string) => {
+                const boldParts = text.split(/(\*\*.*?\*\*)/g);
+                return boldParts.map((p, j) => 
+                  p.startsWith('**') && p.endsWith('**') 
+                    ? <strong key={j}>{p.slice(2, -2)}</strong> 
+                    : p
+                );
+              };
+
+              // Handle inline code
+              const parseInlineCode = (items: (string | React.ReactNode)[]) => {
+                const newItems: (string | React.ReactNode)[] = [];
+                items.forEach((item, idx) => {
+                  if (typeof item === 'string') {
+                    const codeParts = item.split(/(`.*?`)/g);
+                    codeParts.forEach((p, k) => {
+                      if (p.startsWith('`') && p.endsWith('`')) {
+                        newItems.push(<code key={`${idx}-${k}`} className="inline-code">{p.slice(1, -1)}</code>);
+                      } else {
+                        newItems.push(p);
+                      }
+                    });
+                  } else {
+                    newItems.push(item);
+                  }
+                });
+                return newItems;
+              };
+
+              const parsedLine = parseInlineCode(parseBold(line));
+
+              return (
+                <p key={i}>
+                  {parsedLine.length > 0 ? parsedLine : <br />}
+                </p>
+              );
+            })}
+          </div>
+        );
+      })}
+    </>
+  );
+};
 
 export default function UserChat() {
   const [searchParams, setSearchParams] = useSearchParams();
@@ -197,14 +279,16 @@ export default function UserChat() {
     }
 
     try {
-      const chatMessages = messages
-        .filter(m => !m.error)
-        .map(m => ({ role: m.role as 'user' | 'assistant', content: m.content }));
-      chatMessages.push({ role: 'user', content: input });
+      const currentMessagesForAI = [
+        ...messages
+          .filter(m => !m.error)
+          .map(m => ({ role: m.role as 'user' | 'assistant', content: m.content })),
+        { role: 'user' as const, content: input }
+      ];
 
       const enabledSkills = skillService.getEnabledSkills();
       const skillsDescription = enabledSkills.length > 0
-        ? `\nYou have the following skills enabled: ${enabledSkills.map((s: any) => `[${s.displayName}: ${s.description}]`).join(', ')}.`
+        ? `\nYou have the following skills enabled: ${enabledSkills.map((s) => `[${s.displayName}: ${s.description}]`).join(', ')}.`
         : '';
 
       const userMemories = memoryService.getMemories();
@@ -217,20 +301,64 @@ export default function UserChat() {
         content: `You are Teleaon Bot, a helpful and intelligent AI assistant. Be concise, friendly, and helpful. Format your responses with markdown when appropriate.${skillsDescription}${memoriesDescription}`,
       };
 
-      const response = await sendChatMessage({
-        messages: [systemMessage, ...chatMessages],
+      // Turn 1: Initial AI response (might contain a tool call)
+      let response = await sendChatMessage({
+        messages: [systemMessage, ...currentMessagesForAI],
         model: config.model,
         apiKey: config.apiKey,
         provider: config.provider,
+        useGrounding: config.provider?.toLowerCase() === 'gemini',
       });
+
+      let assistantContent = response.content || "";
+      
+      // TOOL EXECUTION LOOP
+      // If the AI output a tool call, we execute it and send it back
+      if (assistantContent.includes('```tool_code')) {
+        const toolMatch = assistantContent.match(/```tool_code\s+([\s\S]*?)```/);
+        if (toolMatch) {
+          const toolCall = toolMatch[1].trim();
+          
+          // 1. Add the tool call message to the UI first so user sees it "executing"
+          const toolCallMsg: Message = {
+            id: (Date.now() + 1).toString(),
+            role: 'assistant',
+            content: assistantContent,
+            timestamp: new Date(),
+          };
+          setMessages(prev => [...prev, toolCallMsg]);
+          
+          // 2. Execute the tool
+          const toolResult = await toolExecutor.execute(toolCall);
+          
+          // 3. Prepare recursive call with tool results
+          const resultStr = toolResult.success 
+            ? `Tool Result: ${JSON.stringify(toolResult.data)}` 
+            : `Tool Error: ${toolResult.error}`;
+            
+          currentMessagesForAI.push({ role: 'assistant', content: assistantContent });
+          currentMessagesForAI.push({ role: 'user', content: resultStr });
+
+          // 4. Get final summarized response from AI
+          response = await sendChatMessage({
+            messages: [systemMessage, ...currentMessagesForAI],
+            model: config.model,
+            apiKey: config.apiKey,
+            provider: config.provider,
+            useGrounding: config.provider?.toLowerCase() === 'gemini',
+          });
+          
+          assistantContent = response.content || "";
+        }
+      }
 
       const assistantTimestamp = new Date();
       const assistantMessage: Message = {
-        id: (Date.now() + 1).toString(),
+        id: (Date.now() + 2).toString(),
         role: 'assistant',
         content: response.error 
           ? `❌ Error: ${response.error}` 
-          : response.content || "I received your message but couldn't generate a response.",
+          : assistantContent || "I received the data but couldn't generate a summary.",
         timestamp: assistantTimestamp,
         error: !!response.error,
       };
@@ -239,6 +367,7 @@ export default function UserChat() {
 
       // Save assistant message to session
       if (activeSessionId && !response.error) {
+        // We might want to save both if there was a tool call
         sessionService.addMessageToSession(activeSessionId, {
           id: assistantMessage.id,
           role: 'assistant',
@@ -290,7 +419,7 @@ export default function UserChat() {
         <div className="chat-header">
           <div className="chat-header-info">
             <div className="avatar">
-              <Bot size={20} />
+              <img src="/bot-avatar.png" alt="Bot" />
             </div>
             <div>
               <h3>Teleaon Bot</h3>
@@ -319,13 +448,13 @@ export default function UserChat() {
                   </div>
                 ) : (
                   <div className="avatar avatar-sm assistant-avatar">
-                    <Bot size={14} />
+                    <img src="/bot-avatar.png" alt="Bot" />
                   </div>
                 )}
               </div>
               <div className="message-content">
                 <div className="message-bubble">
-                  {message.content}
+                  <MessageContent content={message.content} />
                 </div>
                 <span className="message-time">{formatTime(message.timestamp)}</span>
               </div>
