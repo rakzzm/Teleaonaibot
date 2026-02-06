@@ -159,24 +159,29 @@ async function callGeminiDirectly(request: ChatCompletionRequest): Promise<ChatC
     console.warn(`[Gemini] First attempt (${requestedModel}/v1beta) failed: ${errorMsg}`);
     
     try {
-      // Fallback 1: gemini-1.5-flash on v1beta (v1beta often has better alias/feature support)
-      return await tryModel('gemini-1.5-flash', 'v1beta');
+      // Attempt 2: gemini-2.0-flash on v1beta (Very robust and fast)
+      return await tryModel('gemini-2.0-flash', 'v1beta');
     } catch {
       try {
-        // Fallback 2: gemini-1.5-flash-latest on v1beta
-        return await tryModel('gemini-1.5-flash-latest', 'v1beta');
+        // Attempt 3: gemini-flash-latest on v1beta
+        return await tryModel('gemini-flash-latest', 'v1beta');
       } catch {
         try {
-          // Fallback 3: gemini-1.5-flash on v1 (Stable endpoint)
-          return await tryModel('gemini-1.5-flash', 'v1');
-        } catch (finalErr: unknown) {
-          const finalMsg = finalErr instanceof Error ? finalErr.message : String(finalErr);
-          console.error(`[Gemini] All attempts failed. Final error: ${finalMsg}`);
-          return {
-            content: '',
-            model: requestedModel,
-            error: `Gemini Direct Call Failed: ${finalMsg}`,
-          };
+          // Attempt 4: gemini-1.5-flash on v1beta
+          return await tryModel('gemini-1.5-flash', 'v1beta');
+        } catch {
+          try {
+            // Attempt 5: Fallback to gemini-1.5-flash on v1 (Stable endpoint)
+            return await tryModel('gemini-1.5-flash', 'v1');
+          } catch (finalErr: unknown) {
+            const finalMsg = finalErr instanceof Error ? finalErr.message : String(finalErr);
+            console.error(`[Gemini] All attempts failed. Final error: ${finalMsg}`);
+            return {
+              content: '',
+              model: requestedModel,
+              error: `Gemini Direct Call Failed: ${finalMsg}`,
+            };
+          }
         }
       }
     }
