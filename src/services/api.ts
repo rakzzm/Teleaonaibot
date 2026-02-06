@@ -71,27 +71,60 @@ async function callGeminiDirectly(request: ChatCompletionRequest): Promise<ChatC
     const systemMessage = request.messages.find(m => m.role === 'system');
     const otherMessages = request.messages.filter(m => m.role !== 'system');
 
-    const body: Record<string, unknown> = {
-      contents: otherMessages.map(m => ({
+    // Helper to build the body
+    const buildBody = (includeSystemInstruction: boolean) => {
+      const contents = otherMessages.map(m => ({
         role: m.role === 'assistant' ? 'model' : 'user',
         parts: [{ text: m.content }]
-      })),
-      generationConfig: {
-        maxOutputTokens: 2048,
+      }));
+
+      // If we aren't using the formal system_instruction field, prepend it to the first user message
+      if (!includeSystemInstruction && systemMessage && contents.length > 0) {
+        const firstUserMsg = contents.find(c => c.role === 'user');
+        if (firstUserMsg) {
+          firstUserMsg.parts[0].text = `Instructions: ${systemMessage.content}\n\nUser Message: ${firstUserMsg.parts[0].text}`;
+        }
       }
+
+      const body: Record<string, unknown> = {
+        contents,
+        generationConfig: {
+          maxOutputTokens: 2048,
+        }
+      };
+
+      if (includeSystemInstruction && systemMessage) {
+        body.system_instruction = {
+          parts: [{ text: systemMessage.content }]
+        };
+      }
+
+      return body;
     };
 
-    if (systemMessage) {
-      body.system_instruction = {
-        parts: [{ text: systemMessage.content }]
-      };
-    }
+    // Try with system_instruction first if version is v1beta
+    const useFormalSystemMsg = version === 'v1beta' && !!systemMessage;
+    let body = buildBody(useFormalSystemMsg);
 
-    const response = await fetch(url, {
+    let response = await fetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body),
     });
+
+    // If first attempt failed with an 'unknown field' error, retry by prepending
+    if (!response.ok && useFormalSystemMsg) {
+      const errorText = await response.clone().text();
+      if (errorText.includes('system_instruction')) {
+        console.warn(`[Gemini] system_instruction not supported by ${modelId} on ${version}. Retrying with prepended prompt...`);
+        body = buildBody(false);
+        response = await fetch(url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body),
+        });
+      }
+    }
 
     if (!response.ok) {
       const errorText = await response.text();
