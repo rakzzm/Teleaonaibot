@@ -42,6 +42,16 @@ export default function MainLayout() {
           <Outlet />
         </main>
       </div>
+
+      {/* Global SVG Gradient for Icons */}
+      <svg width="0" height="0" style={{ position: 'absolute' }}>
+        <defs>
+          <linearGradient id="teleaon-icon-gradient" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" stopColor="#0ea5e9" /> {/* Sky Blue */}
+            <stop offset="100%" stopColor="#ec4899" /> {/* Pink */}
+          </linearGradient>
+        </defs>
+      </svg>
     </div>
   );
 }

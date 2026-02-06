@@ -66,3 +66,13 @@ button:focus-visible {
     background-color: #f9f9f9;
   }
 }
+
+/* Global Icon Gradient Styling */
+.lucide {
+  stroke: url(#teleaon-icon-gradient) !important;
+}
+
+/* Ensure filled icons also use the gradient if applicable */
+.lucide[fill]:not([fill="none"]) {
+  fill: url(#teleaon-icon-gradient) !important;
+}
